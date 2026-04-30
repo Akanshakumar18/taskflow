@@ -80,18 +80,24 @@ router.put('/:id', async (req, res) => {
     }
 
     const { title, description, status, priority, due_date, assigned_to } = req.body;
-    if (title !== undefined && title.trim().length < 2) {
-      return res.status(400).json({ error: 'Task title must be at least 2 characters' });
-    }
 
     // Only project admins can reassign tasks
-    if (assigned_to !== undefined && !isProjectAdmin) {
+    if (assigned_to !== undefined && assigned_to !== task.assigned_to && !isProjectAdmin) {
       return res.status(403).json({ error: 'Only project admins can reassign tasks' });
     }
 
-    // Members can only change status on tasks they don't own (not priority/due_date/title)
-    if (!isProjectAdmin && !isTaskOwner) {
-      return res.status(403).json({ error: 'You can only edit tasks you created or are assigned to' });
+    // Members can only change status and description, NOT title/priority/due_date/assigned_to
+    if (!isProjectAdmin && isTaskOwner) {
+      // Members can update status and description, but protect other fields
+      if (title !== undefined && title !== task.title) {
+        return res.status(403).json({ error: 'Only project admins can change task title' });
+      }
+      if (priority !== undefined && priority !== task.priority) {
+        return res.status(403).json({ error: 'Only project admins can change task priority' });
+      }
+      if (due_date !== undefined && due_date !== task.due_date) {
+        return res.status(403).json({ error: 'Only project admins can change task due date' });
+      }
     }
 
     if (assigned_to !== undefined && assigned_to !== null) {
@@ -101,6 +107,12 @@ router.put('/:id', async (req, res) => {
 
     const validStatus = ['todo', 'in_progress', 'done'].includes(status) ? status : task.status;
     const validPriority = ['low', 'medium', 'high'].includes(priority) ? priority : task.priority;
+
+    // Validate title length if title is being changed
+    const newTitle = title !== undefined ? title.trim() : task.title;
+    if (newTitle.length < 2) {
+      return res.status(400).json({ error: 'Task title must be at least 2 characters' });
+    }
 
     // Log status change activity if status changed
     if (status !== undefined && status !== task.status) {
