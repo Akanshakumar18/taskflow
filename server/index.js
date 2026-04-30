@@ -22,12 +22,28 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/dashboard', auth, dashboardRoutes);
 
 app.use('/api/users', auth, requireAdmin, async (req, res) => {
-  try {
-    const result = await query('SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC');
-    res.json({ users: result.rows });
-  } catch (err) {
-    console.error('Error fetching users:', err);
-    res.status(500).json({ error: 'Server error' });
+  if (req.method === 'GET') {
+    try {
+      const result = await query('SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC');
+      res.json({ users: result.rows });
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  } else if (req.method === 'DELETE') {
+    const userId = req.query.id;
+    if (!userId) return res.status(400).json({ error: 'User ID is required' });
+    if (String(userId) === String(req.user.id)) return res.status(400).json({ error: 'Cannot delete yourself' });
+    try {
+      await query('DELETE FROM project_members WHERE user_id = $1', [userId]);
+      await query('DELETE FROM tasks WHERE created_by = $1 OR assigned_to = $1', [userId]);
+      await query('DELETE FROM projects WHERE created_by = $1', [userId]);
+      await query('DELETE FROM users WHERE id = $1', [userId]);
+      res.json({ message: 'User deleted' });
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
   }
 });
 

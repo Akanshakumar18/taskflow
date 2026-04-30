@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # TaskFlow - Project Management App
 
 A full-stack project management application with role-based access control.
@@ -51,3 +52,6 @@ A full-stack project management application with role-based access control.
    - `DATABASE_URL` - auto-provided by Railway PostgreSQL service
 
 The app will auto-build the client and serve it from the Express server.
+=======
+# TaskFlow
+>>>>>>> 6d8b2b48fe5d2f064a3d267122449a4c61d0c548

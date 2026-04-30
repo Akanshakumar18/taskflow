@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { usersAPI, projectAPI } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { User, Shield, FolderKanban, Mail, ArrowRight } from 'lucide-react';
+import { User, Shield, FolderKanban, Mail, ArrowRight, Trash2 } from 'lucide-react';
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -20,6 +20,14 @@ export default function UsersPage() {
       })
       .finally(() => setLoading(false));
   }, [currentUser]);
+
+  const handleDeleteUser = async (userId) => {
+    if (!confirm('Delete this user? This will also remove them from all projects and delete their tasks.')) return;
+    try {
+      await usersAPI.deleteUser(userId);
+      setUsers(users.filter(u => u.id !== userId));
+    } catch (err) { alert(err.message); }
+  };
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -46,9 +54,16 @@ export default function UsersPage() {
                   <p className="text-xs text-gray-500 flex items-center gap-1"><Mail size={10} /> {u.email}</p>
                 </div>
               </div>
-              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${u.role === 'admin' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
-                {u.role === 'admin' ? 'System Admin' : 'Member'}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${u.role === 'admin' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                  {u.role === 'admin' ? 'System Admin' : 'Member'}
+                </span>
+                {u.id !== currentUser.id && (
+                  <button onClick={() => handleDeleteUser(u.id)} className="p-1.5 text-gray-400 hover:text-danger transition rounded hover:bg-red-50" title="Delete user">
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

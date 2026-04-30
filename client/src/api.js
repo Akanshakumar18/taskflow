@@ -43,4 +43,5 @@ export const dashboardAPI = {
 
 export const usersAPI = {
   list: () => request('/users'),
+  deleteUser: (userId) => request(`/users?id=${userId}`, { method: 'DELETE' }),
 };
