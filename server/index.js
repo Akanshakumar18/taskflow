@@ -4,7 +4,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const { query, initDB } = require('./database');
-const { auth } = require('./middleware');
+const { auth, requireAdmin, requireProjectAdmin } = require('./middleware');
 const authRoutes = require('./routes/auth');
 const projectRoutes = require('./routes/projects');
 const taskRoutes = require('./routes/tasks');
@@ -21,11 +21,12 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/dashboard', auth, dashboardRoutes);
 
-app.use('/api/users', auth, async (req, res) => {
+app.use('/api/users', auth, requireAdmin, async (req, res) => {
   try {
-    const result = await query('SELECT id, name, email, role, created_at FROM users');
+    const result = await query('SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC');
     res.json({ users: result.rows });
   } catch (err) {
+    console.error('Error fetching users:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
