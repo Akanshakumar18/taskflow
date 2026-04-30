@@ -1,10 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, FolderKanban, LogOut, User, Shield } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, LogOut, User, Shield, Users } from 'lucide-react';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const isSystemAdmin = user?.role === 'admin';
 
   const handleLogout = () => {
     logout();
@@ -25,16 +26,21 @@ export default function Layout({ children }) {
           <Link to="/projects" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-primary transition-colors">
             <FolderKanban size={20} /> Projects
           </Link>
+          {isSystemAdmin && (
+            <Link to="/users" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-primary transition-colors">
+              <Users size={20} /> Users
+            </Link>
+          )}
         </nav>
         <div className="p-4 border-t border-gray-200">
           <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-              <User size={18} className="text-primary" />
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center ${isSystemAdmin ? 'bg-amber-100' : 'bg-primary/10'}`}>
+              {isSystemAdmin ? <Shield size={18} className="text-amber-600" /> : <User size={18} className="text-primary" />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
-              <p className="text-xs text-gray-500 flex items-center gap-1">
-                {user?.role === 'admin' && <Shield size={10} />}
+              <p className={`text-xs flex items-center gap-1 ${isSystemAdmin ? 'text-amber-600 font-medium' : 'text-gray-500'}`}>
+                {isSystemAdmin && <Shield size={10} />}
                 {user?.role}
               </p>
             </div>

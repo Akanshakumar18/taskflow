@@ -19,12 +19,14 @@ export const authAPI = {
 
 export const projectAPI = {
   list: () => request('/projects'),
+  listAll: () => request('/projects/admin/all'),
   get: (id) => request(`/projects/${id}`),
   create: (body) => request('/projects', { method: 'POST', body: JSON.stringify(body) }),
   update: (id, body) => request(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   remove: (id) => request(`/projects/${id}`, { method: 'DELETE' }),
   addMember: (projectId, body) => request(`/projects/${projectId}/members`, { method: 'POST', body: JSON.stringify(body) }),
   removeMember: (projectId, userId) => request(`/projects/${projectId}/members/${userId}`, { method: 'DELETE' }),
+  changeMemberRole: (projectId, userId, role) => request(`/projects/${projectId}/members/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
   searchUsers: (projectId, q) => request(`/projects/${projectId}/search-users?q=${encodeURIComponent(q)}`),
 };
 

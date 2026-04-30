@@ -1,11 +1,29 @@
 const express = require('express');
 const { query } = require('../database');
-const { auth, requireProjectAdmin } = require('../middleware');
+const { auth, requireAdmin, requireProjectAdmin } = require('../middleware');
 
 const router = express.Router();
 
 router.use(auth);
 
+// System Admin: List ALL projects across the system
+router.get('/admin/all', requireAdmin, async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT p.*, u.name as creator_name,
+        (SELECT COUNT(*) FROM tasks WHERE project_id = p.id) as task_count,
+        (SELECT COUNT(*) FROM project_members WHERE project_id = p.id) as member_count
+      FROM projects p
+      JOIN users u ON p.created_by = u.id
+      ORDER BY p.created_at DESC
+    `);
+    res.json({ projects: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// List projects the user is a member of
 router.get('/', async (req, res) => {
   try {
     const result = await query(`
@@ -123,7 +141,32 @@ router.delete('/:id/members/:userId', requireProjectAdmin(), async (req, res) =>
   }
 });
 
-router.get('/:id/search-users', async (req, res) => {
+// Project Admin: Change a member's role
+router.patch('/:id/members/:userId/role', requireProjectAdmin(), async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!['admin', 'member'].includes(role)) {
+      return res.status(400).json({ error: 'Role must be admin or member' });
+    }
+    const memResult = await query('SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2', [req.params.id, req.params.userId]);
+    const membership = memResult.rows[0];
+    if (!membership) return res.status(404).json({ error: 'Member not found' });
+    // Prevent demoting the last admin
+    if (membership.role === 'admin' && role === 'member') {
+      const adminResult = await query("SELECT COUNT(*) as count FROM project_members WHERE project_id = $1 AND role = 'admin'", [req.params.id]);
+      if (parseInt(adminResult.rows[0].count) <= 1) {
+        return res.status(400).json({ error: 'Cannot demote the last admin' });
+      }
+    }
+    await query('UPDATE project_members SET role = $1 WHERE project_id = $2 AND user_id = $3', [role, req.params.id, req.params.userId]);
+    res.json({ message: `Member role updated to ${role}` });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Project Admin only: Search users to add to project
+router.get('/:id/search-users', requireProjectAdmin(), async (req, res) => {
   try {
     const { q } = req.query;
     if (!q || q.trim().length < 2) return res.json({ users: [] });

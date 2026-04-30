@@ -70,9 +70,28 @@ router.put('/:id', async (req, res) => {
     const memResult = await query('SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2', [task.project_id, req.user.id]);
     if (!memResult.rows.length) return res.status(403).json({ error: 'Not a project member' });
 
+    const membership = memResult.rows[0];
+    const isProjectAdmin = membership.role === 'admin';
+    const isTaskOwner = task.created_by === req.user.id || task.assigned_to === req.user.id;
+
+    // Members can only edit tasks they own; project admins can edit any task
+    if (!isProjectAdmin && !isTaskOwner) {
+      return res.status(403).json({ error: 'You can only edit tasks you created or are assigned to' });
+    }
+
     const { title, description, status, priority, due_date, assigned_to } = req.body;
     if (title !== undefined && title.trim().length < 2) {
       return res.status(400).json({ error: 'Task title must be at least 2 characters' });
+    }
+
+    // Only project admins can reassign tasks
+    if (assigned_to !== undefined && !isProjectAdmin) {
+      return res.status(403).json({ error: 'Only project admins can reassign tasks' });
+    }
+
+    // Members can only change status on tasks they don't own (not priority/due_date/title)
+    if (!isProjectAdmin && !isTaskOwner) {
+      return res.status(403).json({ error: 'You can only edit tasks you created or are assigned to' });
     }
 
     if (assigned_to !== undefined && assigned_to !== null) {
@@ -115,6 +134,11 @@ router.delete('/:id', async (req, res) => {
     if (!task) return res.status(404).json({ error: 'Task not found' });
     const memResult = await query('SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2', [task.project_id, req.user.id]);
     if (!memResult.rows.length) return res.status(403).json({ error: 'Not a project member' });
+    const isProjectAdmin = memResult.rows[0].role === 'admin';
+    const isTaskOwner = task.created_by === req.user.id || task.assigned_to === req.user.id;
+    if (!isProjectAdmin && !isTaskOwner) {
+      return res.status(403).json({ error: 'You can only delete tasks you created or are assigned to' });
+    }
     await query('DELETE FROM tasks WHERE id = $1', [req.params.id]);
     res.json({ message: 'Task deleted' });
   } catch (err) {

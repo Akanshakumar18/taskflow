@@ -38,6 +38,10 @@ export default function ProjectDetail() {
 
   const isAdmin = membership?.role === 'admin';
 
+  const canEditTask = (task) => isAdmin || task.created_by === user?.id || task.assigned_to === user?.id;
+  const canDeleteTask = (task) => isAdmin || task.created_by === user?.id || task.assigned_to === user?.id;
+  const canChangeStatus = (task) => isAdmin || task.assigned_to === user?.id || task.created_by === user?.id;
+
   const fetchProject = async () => {
     try {
       const [projData, taskData] = await Promise.all([
@@ -182,17 +186,21 @@ export default function ProjectDetail() {
                             <p className="font-medium text-sm text-gray-900 truncate">{task.title}</p>
                             {task.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{task.description}</p>}
                           </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-                            <button onClick={() => openEditTask(task)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"><Edit3 size={14} /></button>
-                            <button onClick={() => handleDeleteTask(task.id)} className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-danger"><Trash2 size={14} /></button>
-                          </div>
+                          {canEditTask(task) && (
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                              <button onClick={() => openEditTask(task)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"><Edit3 size={14} /></button>
+                              {canDeleteTask(task) && (
+                                <button onClick={() => handleDeleteTask(task.id)} className="p-1 hover:bg-red-50 rounded text-gray-400 hover:text-danger"><Trash2 size={14} /></button>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
                           <span className={`flex items-center gap-1 ${PRIORITY_CONFIG[task.priority]?.color}`}><Flag size={10} /> {task.priority}</span>
                           {task.due_date && <span className="flex items-center gap-1"><Calendar size={10} /> {task.due_date}</span>}
                           {task.assigned_name && <span className="flex items-center gap-1"><User size={10} /> {task.assigned_name}</span>}
                         </div>
-                        {status !== 'done' && (
+                        {canChangeStatus(task) && status !== 'done' && (
                           <div className="flex gap-1 mt-2">
                             {status === 'todo' && <button onClick={() => handleStatusChange(task.id, 'in_progress')} className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition">Start</button>}
                             {status === 'in_progress' && <button onClick={() => handleStatusChange(task.id, 'done')} className="text-xs px-2 py-0.5 bg-green-50 text-green-700 rounded hover:bg-green-100 transition">Complete</button>}
@@ -223,17 +231,35 @@ export default function ProjectDetail() {
             {members.map(m => (
               <div key={m.id} className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><User size={18} className="text-primary" /></div>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${m.role === 'admin' ? 'bg-amber-100' : 'bg-primary/10'}`}>
+                    {m.role === 'admin' ? <Shield size={18} className="text-amber-600" /> : <User size={18} className="text-primary" />}
+                  </div>
                   <div>
-                    <p className="font-medium text-gray-900">{m.name}</p>
+                    <p className="font-medium text-gray-900">{m.name} {m.id === user?.id && <span className="text-xs text-gray-400">(you)</span>}</p>
                     <p className="text-xs text-gray-500">{m.email}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${m.role === 'admin' ? 'bg-indigo-100 text-primary' : 'bg-gray-100 text-gray-600'}`}>
-                    {m.role === 'admin' && <Shield size={10} className="inline mr-1" />}{m.role}
-                  </span>
-                  {isAdmin && m.id !== user.id && (
+                  {isAdmin && m.id !== user?.id ? (
+                    <select
+                      value={m.role}
+                      onChange={async (e) => {
+                        try {
+                          await projectAPI.changeMemberRole(id, m.id, e.target.value);
+                          fetchProject();
+                        } catch (err) { alert(err.message); }
+                      }}
+                      className="text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                    >
+                      <option value="member">Member</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  ) : (
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${m.role === 'admin' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {m.role === 'admin' && <Shield size={10} className="inline mr-1" />}{m.role === 'admin' ? 'Admin' : 'Member'}
+                    </span>
+                  )}
+                  {isAdmin && m.id !== user?.id && (
                     <button onClick={() => handleRemoveMember(m.id)} className="p-1.5 text-gray-400 hover:text-danger transition rounded hover:bg-red-50"><X size={16} /></button>
                   )}
                 </div>
@@ -280,11 +306,18 @@ export default function ProjectDetail() {
                 <input type="date" value={taskForm.due_date} onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Assign To</label>
-                <select value={taskForm.assigned_to} onChange={e => setTaskForm(f => ({ ...f, assigned_to: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
-                  <option value="">Unassigned</option>
-                  {members.map(m => <option key={m.id} value={m.id}>{m.name} ({m.role})</option>)}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Assign To {isAdmin ? '' : <span className="text-gray-400 font-normal">(Admin only)</span>}</label>
+                {isAdmin ? (
+                  <select value={taskForm.assigned_to} onChange={e => setTaskForm(f => ({ ...f, assigned_to: e.target.value }))} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
+                    <option value="">Unassigned</option>
+                    {members.map(am => <option key={am.id} value={am.id}>{am.name} ({am.role})</option>)}
+                  </select>
+                ) : (
+                  <p className="px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-500">
+                    {taskForm.assigned_to ? members.find(m => String(m.id) === String(taskForm.assigned_to))?.name || 'Assigned user' : 'Unassigned'}
+                    <span className="block text-xs text-gray-400 mt-0.5">Only project admins can reassign tasks</span>
+                  </p>
+                )}
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => { setShowTaskModal(false); setEditingTask(null); }} className="flex-1 py-2.5 border border-gray-200 rounded-lg font-medium text-gray-600 hover:bg-gray-50 transition">Cancel</button>
