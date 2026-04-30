@@ -102,6 +102,14 @@ router.put('/:id', async (req, res) => {
     const validStatus = ['todo', 'in_progress', 'done'].includes(status) ? status : task.status;
     const validPriority = ['low', 'medium', 'high'].includes(priority) ? priority : task.priority;
 
+    // Log status change activity if status changed
+    if (status !== undefined && status !== task.status) {
+      await query(
+        'INSERT INTO task_activities (task_id, user_id, action, old_value, new_value) VALUES ($1, $2, $3, $4, $5)',
+        [req.params.id, req.user.id, 'status_change', task.status, validStatus]
+      );
+    }
+
     await query(
       'UPDATE tasks SET title = $1, description = $2, status = $3, priority = $4, due_date = $5, assigned_to = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7',
       [
@@ -122,6 +130,26 @@ router.put('/:id', async (req, res) => {
       WHERE t.id = $1
     `, [req.params.id]);
     res.json({ task: updatedResult.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/:id/activities', async (req, res) => {
+  try {
+    const taskResult = await query('SELECT project_id FROM tasks WHERE id = $1', [req.params.id]);
+    if (!taskResult.rows.length) return res.status(404).json({ error: 'Task not found' });
+    const memResult = await query('SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2', [taskResult.rows[0].project_id, req.user.id]);
+    if (!memResult.rows.length) return res.status(403).json({ error: 'Not a project member' });
+    
+    const result = await query(`
+      SELECT ta.*, u.name as user_name
+      FROM task_activities ta
+      JOIN users u ON ta.user_id = u.id
+      WHERE ta.task_id = $1
+      ORDER BY ta.created_at DESC
+    `, [req.params.id]);
+    res.json({ activities: result.rows });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }

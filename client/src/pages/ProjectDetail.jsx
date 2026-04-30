@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { projectAPI, taskAPI } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Plus, Users, Trash2, UserPlus, Shield, Edit3, X, Calendar, Flag, User, GripVertical } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Trash2, UserPlus, Shield, Edit3, X, Calendar, Flag, User, GripVertical, Clock, CheckCircle2 } from 'lucide-react';
 
 const STATUS_CONFIG = {
   todo: { label: 'To Do', color: 'bg-gray-100 text-gray-700', dot: 'bg-gray-400' },
@@ -31,6 +31,7 @@ export default function ProjectDetail() {
   const [editingTask, setEditingTask] = useState(null);
   const [taskForm, setTaskForm] = useState({ title: '', description: '', status: 'todo', priority: 'medium', due_date: '', assigned_to: '' });
   const [taskError, setTaskError] = useState('');
+  const [taskActivities, setTaskActivities] = useState([]);
 
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,7 +93,7 @@ export default function ProjectDetail() {
     try { await taskAPI.update(taskId, { status: newStatus }); fetchProject(); } catch {}
   };
 
-  const openEditTask = (task) => {
+  const openEditTask = async (task) => {
     setEditingTask(task);
     setTaskForm({
       title: task.title,
@@ -102,10 +103,17 @@ export default function ProjectDetail() {
       due_date: task.due_date || '',
       assigned_to: task.assigned_to || '',
     });
+    try {
+      const data = await taskAPI.getActivities(task.id);
+      setTaskActivities(data.activities);
+    } catch {
+      setTaskActivities([]);
+    }
   };
 
   const openNewTask = () => {
     setEditingTask(null);
+    setTaskActivities([]);
     setTaskForm({ title: '', description: '', status: 'todo', priority: 'medium', due_date: '', assigned_to: '' });
     setShowTaskModal(true);
   };
@@ -324,6 +332,27 @@ export default function ProjectDetail() {
                 <button type="submit" className="flex-1 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium transition">{editingTask ? 'Update' : 'Create'}</button>
               </div>
             </form>
+            {editingTask && taskActivities.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-3"><Clock size={14} /> Progress History</h3>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {taskActivities.map((activity, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-sm">
+                      <CheckCircle2 size={14} className="text-green-500 mt-0.5 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-gray-700">
+                          <span className="font-medium">{activity.user_name}</span> changed status from 
+                          <span className="px-1.5 py-0.5 bg-gray-100 rounded text-xs mx-1">{activity.old_value}</span> 
+                          to 
+                          <span className="px-1.5 py-0.5 bg-primary/10 rounded text-xs mx-1 text-primary">{activity.new_value}</span>
+                        </p>
+                        <p className="text-xs text-gray-400">{new Date(activity.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

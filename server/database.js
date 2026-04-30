@@ -63,6 +63,18 @@ async function initDB() {
     );
   `);
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS task_activities (
+      id SERIAL PRIMARY KEY,
+      task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      action VARCHAR(50) NOT NULL,
+      old_value VARCHAR(255),
+      new_value VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
   console.log('Database tables initialized');
 }
 

@@ -35,6 +35,7 @@ export const taskAPI = {
   create: (projectId, body) => request(`/tasks/project/${projectId}`, { method: 'POST', body: JSON.stringify(body) }),
   update: (id, body) => request(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   remove: (id) => request(`/tasks/${id}`, { method: 'DELETE' }),
+  getActivities: (id) => request(`/tasks/${id}/activities`),
 };
 
 export const dashboardAPI = {
