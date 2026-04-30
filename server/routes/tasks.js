@@ -88,14 +88,27 @@ router.put('/:id', async (req, res) => {
 
     // Members can only change status and description, NOT title/priority/due_date/assigned_to
     if (!isProjectAdmin && isTaskOwner) {
+      // Normalize dates for comparison (handle null/empty/undefined consistently)
+      const normalizeDate = (d) => {
+        if (!d || d === '' || d === 'null' || d === 'undefined') return null;
+        // Convert to YYYY-MM-DD string for consistent comparison
+        try {
+          const date = new Date(d);
+          if (isNaN(date.getTime())) return null;
+          return date.toISOString().split('T')[0];
+        } catch { return null; }
+      };
+      const currentDueDate = normalizeDate(task.due_date);
+      const newDueDate = normalizeDate(due_date);
+      
       // Members can update status and description, but protect other fields
-      if (title !== undefined && title !== task.title) {
+      if (title !== undefined && title.trim() !== task.title) {
         return res.status(403).json({ error: 'Only project admins can change task title' });
       }
       if (priority !== undefined && priority !== task.priority) {
         return res.status(403).json({ error: 'Only project admins can change task priority' });
       }
-      if (due_date !== undefined && due_date !== task.due_date) {
+      if (due_date !== undefined && newDueDate !== currentDueDate) {
         return res.status(403).json({ error: 'Only project admins can change task due date' });
       }
     }
