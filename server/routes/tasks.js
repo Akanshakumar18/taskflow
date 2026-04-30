@@ -188,9 +188,9 @@ router.delete('/:id', async (req, res) => {
     const memResult = await query('SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2', [task.project_id, req.user.id]);
     if (!memResult.rows.length) return res.status(403).json({ error: 'Not a project member' });
     const isProjectAdmin = memResult.rows[0].role === 'admin';
-    const isTaskOwner = task.created_by === req.user.id || task.assigned_to === req.user.id;
-    if (!isProjectAdmin && !isTaskOwner) {
-      return res.status(403).json({ error: 'You can only delete tasks you created or are assigned to' });
+    // Only project admins can delete tasks - members cannot delete even if assigned
+    if (!isProjectAdmin) {
+      return res.status(403).json({ error: 'Only project admins can delete tasks' });
     }
     await query('DELETE FROM tasks WHERE id = $1', [req.params.id]);
     res.json({ message: 'Task deleted' });

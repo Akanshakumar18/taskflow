@@ -40,7 +40,7 @@ export default function ProjectDetail() {
   const isAdmin = membership?.role === 'admin';
 
   const canEditTask = (task) => isAdmin || task.created_by === user?.id || task.assigned_to === user?.id;
-  const canDeleteTask = (task) => isAdmin || task.created_by === user?.id || task.assigned_to === user?.id;
+  const canDeleteTask = (task) => isAdmin; // Only project admins can delete tasks
   const canChangeStatus = (task) => isAdmin || task.assigned_to === user?.id || task.created_by === user?.id;
 
   const fetchProject = async () => {
